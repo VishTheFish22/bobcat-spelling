@@ -40,6 +40,7 @@ self.addEventListener('message', async function(e) {
 				keys_array[i] = keys_array[swapidx];
 				keys_array[swapidx] = a;
 			}
+			console.log(keys_array)
 			this.postMessage(["data", keys_array])
 			break;
 		case "play":
