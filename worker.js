@@ -44,6 +44,8 @@ self.addEventListener('message', async function(e) {
 			this.postMessage(["data", keys_array])
 			break;
 		case "play":
+			console.log(e)
+			console.log(e.data["id"])
 			const entry = await db.words.where('id').equals(e.data["id"].toString()).first()
 			this.postMessage(["answer", entry])
 			break;				
