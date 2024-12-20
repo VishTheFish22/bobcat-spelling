@@ -1,247 +1,238 @@
 <html data-bs-theme="dark">
-    <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            let local_entries
-            let local_audio
-            let local_targetWord
-            
-            const worker = new Worker('worker.js?t=' + new Date().getTime())
-            
-            worker.onmessage = function(ev) {
-                        if( ev.data[1] === "ready" ) {
-                            show_menu()
-                        }
-                        else if( ev.data[1] === "installing") {
-                            show_progress()
-                        }
-                        else if( ev.data[0] === "data") {
-                            start_quiz(ev.data[1])
-                        }
-                        else if(ev.data[0] === "answer") {
-                            load_question(ev.data[1])
-                        }
-            };
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let local_entries
+        let local_audio
+        let local_targetWord
 
-            window.onload = function(e) {
-                console.log("process")
-                worker.postMessage({"action":"install"})
-            }
-            // document.onkeypress = function (e) {
-            // e = e || window.event;
-            // console.log(e.keyCode)
-            // if( e.keyCode == 48 )
-            //     console.log("gggggggggg")
-            // // use e.keyCode
-            // };
+        const worker = new Worker('worker.js?t=' + new Date().getTime())
 
-            function load_question(entry)
-            {
-                local_targetWord = entry["word"]
-                local_audio = new Audio(URL.createObjectURL(entry["mp3"]))
-                document.getElementById("dfn").innerHTML = entry["dfn"]
-                document.getElementById("ex").innerHTML = entry["ex"]
-                document.getElementById("origin").innerHTML = entry["origin"]
-                play_audio()
+        worker.onmessage = function(ev) {
+            if( ev.data[1] === "ready" ) {
+                show_menu()
             }
+            else if( ev.data[1] === "installing") {
+                show_progress()
+            }
+            else if( ev.data[0] === "data") {
+                start_quiz(ev.data[1])
+            }
+            else if(ev.data[0] === "answer") {
+                load_question(ev.data[1])
+            }
+        };
 
-            function next() {
-                resetAnswer()
-                const [idx, id] = local_entries.next().value
-                const pb = document.getElementById("current-progress")
-                const value = ((1+parseInt(idx))*100)/local_totalCount
-                pb.style.width = value + '%';
-                pb.setAttribute('aria-valuenow', value);
-                worker.postMessage({
-                                     "action": "play",
-                                     "id": id
-                                    })
-            }
-            function play_audio() {
-                local_audio.play()
-            }
+        window.onload = function(e) {
+            console.log("process")
+            worker.postMessage({"action":"install"})
+        }
+        // document.onkeypress = function (e) {
+        // e = e || window.event;
+        // console.log(e.keyCode)
+        // if( e.keyCode == 48 )
+        //     console.log("gggggggggg")
+        // // use e.keyCode
+        // };
 
-            function reveal()
-            {
-                document.getElementById("answer").value = local_targetWord
-            }
-            function filterNumbers(input) {
-        input.value = input.value.replace(/[0-9]/g, ''); 
+        function load_question(entry)
+        {
+            local_targetWord = entry["word"]
+            local_audio = new Audio(URL.createObjectURL(entry["mp3"]))
+            document.getElementById("dfn").innerHTML = entry["dfn"]
+            document.getElementById("ex").innerHTML = entry["ex"]
+            document.getElementById("origin").innerHTML = entry["origin"]
+            play_audio()
         }
 
-            function show_progress()
-            {
-                console.log("progress")
-                show_tab("simple-progress")
-            }
+        function next() {
+            resetAnswer()
+            local_index = (local_index + 1)%local_totalCount
+            const pb = document.getElementById("current-progress")
+            const value = ((local_index)*100)/local_totalCount
+            pb.style.width = value + '%';
+            pb.setAttribute('aria-valuenow', value);
+            worker.postMessage({
+                "action": "play",
+                "id": local_entries[local_index]
+            })
+        }
+        function play_audio() {
+            local_audio.play()
+        }
 
-            function quiz(id)
-            {
-                worker.postMessage({"action":"query", "cat": id}) 
-                show_tab("simple-tabpanel-2")
-            }
+        function reveal()
+        {
+            document.getElementById("answer").value = local_targetWord
+        }
 
-            function start_quiz(entry_list)
-            {
-                //reset
-                local_totalCount = entry_list.length
-                local_entries = entry_list.entries()
-                next()
-            }
+        function filterNumbers(input) {
+            input.value = input.value.replace(/[0-9]/g, '');
+        }
 
-            function show_menu()
-            {
-                show_tab("simple-tabpanel-1")
-            }
-            function show_install()
-            {
-                show_tab("simple-tabpanel-0")
-                console.log("install")
-            }
-            function show_tab(tab_id)
-            {
-                let tabs = document.querySelectorAll(".tab-pane")
-                tabs.forEach(element => {
-                    element.classList.remove("active")
-                });
-                document.getElementById(tab_id).classList.add("active")   
-            }
-            function turn()
-            {
-                let tabs = document.querySelectorAll(".tab-pane")
-                tabs.forEach(element => {
-                    element.classList.remove("active")
-                });
-                document.getElementById("simple-tabpanel-1").classList.add("active")
-            }
-        </script>
-        <style>
-            .input {
-                width:100%;
-                background-color: #FFFFFF; 
-                color: black;
-                text-align: center;
-                text-transform: uppercase;
-                font-size: 200%;
-                font-weight: 500;
-            }
-        </style>
-    </head>
+        function show_progress()
+        {
+            console.log("progress")
+            show_tab("simple-progress")
+        }
 
-    <body class="d-flex flex-column h-100">
-        
-      <main role="main" class="container">
+        function quiz(id)
+        {
+            worker.postMessage({"action":"query", "cat": id})
+            show_tab("simple-tabpanel-2")
+        }
+
+        function start_quiz(entry_list)
+        {
+            //reset
+            local_index = -1
+            local_totalCount = entry_list.length
+            local_entries = entry_list
+            next()
+        }
+
+        function show_menu()
+        {
+            show_tab("simple-tabpanel-1")
+        }
+
+        function show_tab(tab_id)
+        {
+            let tabs = document.querySelectorAll(".tab-pane")
+            tabs.forEach(element => {
+                element.classList.remove("active")
+            });
+            document.getElementById(tab_id).classList.add("active")
+        }
+
+    </script>
+    <style>
+        .input {
+            width: 100%;
+            background-color: #FFFFFF;
+            color: black;
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 200%;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body class="d-flex flex-column h-100">
+
+    <main role="main" class="container">
 
         <div class="tab-content pt-1" id="tab-content">
             <!-- progress -->
             <div class="tab-pane active" id="simple-progress" role="tabpanel">
                 <div class="progress">
                     <div class="progress-bar progress-bar-striped bg-danger progress-bar-animated" roles="progressbar" style="width:100%"
-                            aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+                         aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
                     </div>
                 </div>
             </div>
             <!-- tab install -->
-            <div class="tab-pane" id="simple-tabpanel-0" role="tabpanel" aria-labelledby="simple-tab-0">
+            <!-- <div class="tab-pane" id="simple-tabpanel-0" role="tabpanel" aria-labelledby="simple-tab-0">
                 <div class="px-4 py-4 text-center">
                     <img class="d-block mx-auto mb-4" src="ps.png" alt="" width="96" height="96">
                     <h1 class="display-5 fw-bold text-body-emphasis">Spelling Bee</h1>
                     <div class="col-lg-6 mx-auto">
-                      <p class="lead mb-4">Quickly design and customize responsive mobile-first sites with Bootstrap, the world’s most popular front-end open source toolkit, featuring Sass variables and mixins, responsive grid system, extensive prebuilt components, and powerful JavaScript plugins.</p>
-                      <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                        <button type="button" class="btn btn-primary btn-lg px-4 gap-3" onclick="install()">install</button>
-                      </div>
+                        <p class="lead mb-4">Quickly design and customize responsive mobile-first sites with Bootstrap, the world’s most popular front-end open source toolkit, featuring Sass variables and mixins, responsive grid system, extensive prebuilt components, and powerful JavaScript plugins.</p>
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                            <button type="button" class="btn btn-primary btn-lg px-4 gap-3" onclick="install()">install</button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
 
             <!-- tab quiz -->
             <div class="tab-pane" id="simple-tabpanel-2" role="tabpanel" aria-labelledby="simple-tab-1">
-                        <header class="text-bg-dark">
-            <div class="container">
-              <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
-       
-                <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
-                  <li><Button class="btn" onclick="turn()">Home</Button></li>
-                </ul>        
-              </div>
-            </div>
-          </header>
-            <div class="container p-5">
-                  <div class="rounded">
-                    <div class="progress">
-                        <div id="current-progress" class="progress-bar progress-bar-striped bg-danger progress-bar-animated" roles="progressbar" style="width:100%"
-                                aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
-                        </div>
-                    </div>
-    
-                    <div class="mt-5">
-                    <div class="row h-30 justify-content-center align-items-center">
-                        <div class="col-2  position-relative">
-                            <button class="btn position-absolute top-50 end-0 translate-middle-y" onclick="reveal()">
-                                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368"><path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"/></svg>
-                            </button>
-                        </div>
-                        <!-- <div class="col-sm-2"></div> -->
-                        <div class="col-8 position-relative">
-                            <input id="answer" class="input form-control w-30" type="text" pattern="[a-zA-Z\s]*">
-                            <div class="position-absolute top-50 end-0 translate-middle-y">
-                                <button class="btn" onclick="play_audio()">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 -960 960 960" fill="#FF0000"><path d="M80-80v-80q46 0 91-6t88-22q-46-23-72.5-66.5T160-349v-91h160v-120h135L324-822l72-36 131 262q20 40-3 78t-68 38h-56v40q0 33-23.5 56.5T320-360h-80v11q0 35 21.5 61.5T316-252l12 3q40 10 45 50t-31 60q-60 33-126.5 46T80-80Zm572-114-57-56q21-21 33-48.5t12-59.5q0-32-12-59.5T595-466l57-57q32 32 50 74.5t18 90.5q0 48-18 90t-50 74ZM765-80l-57-57q43-43 67.5-99.5T800-358q0-66-24.5-122T708-579l57-57q54 54 84.5 125T880-358q0 81-30.5 152.5T765-80Z"/></svg>
-                                </button>
-                            </div>
-                            <div id = "correct" class="invisible position-absolute top-50 start-100 translate-middle-y">
-                                <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#75FB4C"><path d="m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
-                                <!-- <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#EA3323"><path d="m336-280 144-144 144 144 56-56-144-144 144-144-56-56-144 144-144-144-56 56 144 144-144 144 56 56ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg> -->
-                            </div>
-                            <div id = "wrong" class="invisible position-absolute top-50 start-100 translate-middle-y">
-                                <!-- <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#75FB4C"><path d="m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg> -->
-                                <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#EA3323"><path d="m336-280 144-144 144 144 56-56-144-144 144-144-56-56-144 144-144-144-56 56 144 144-144 144 56 56ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
-                            </div>
-                        </div>
-                        <div class="col-2"></div>
-                    </div>
-                    </div>
-                    
-                    
-                    <div class="container mt-5">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="card bg-danger">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Definition:</h5>
-                                        <p class="card-text" id="dfn">
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                <header class="text-bg-dark">
+                    <div class="container">
+                        <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
 
-                            <div class="col-md-4">
-                                <div class="card bg-danger">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Origin:</h5>
-                                        <p class="card-text" id="origin">
-                                        </p>
+                            <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
+                                <li><Button class="btn" onclick="show_tab('simple-tabpanel-2')">Home</Button></li>
+                            </ul>
+                        </div>
+                    </div>
+                </header>
+                <div class="container p-5">
+                    <div class="rounded">
+                        <div class="progress">
+                            <div id="current-progress" class="progress-bar progress-bar-striped bg-danger progress-bar-animated" roles="progressbar" style="width:100%"
+                                 aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+
+                        <div class="mt-5">
+                            <div class="row h-30 justify-content-center align-items-center">
+                                <div class="col-2  position-relative">
+                                    <button class="btn position-absolute top-50 end-0 translate-middle-y" onclick="reveal()">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368"><path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z" /></svg>
+                                    </button>
+                                </div>
+                                <!-- <div class="col-sm-2"></div> -->
+                                <div class="col-8 position-relative">
+                                    <input id="answer" class="input form-control w-30" type="text" pattern="[a-zA-Z\s]*">
+                                    <div class="position-absolute top-50 end-0 translate-middle-y">
+                                        <button class="btn" onclick="play_audio()">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 -960 960 960" fill="#FF0000"><path d="M80-80v-80q46 0 91-6t88-22q-46-23-72.5-66.5T160-349v-91h160v-120h135L324-822l72-36 131 262q20 40-3 78t-68 38h-56v40q0 33-23.5 56.5T320-360h-80v11q0 35 21.5 61.5T316-252l12 3q40 10 45 50t-31 60q-60 33-126.5 46T80-80Zm572-114-57-56q21-21 33-48.5t12-59.5q0-32-12-59.5T595-466l57-57q32 32 50 74.5t18 90.5q0 48-18 90t-50 74ZM765-80l-57-57q43-43 67.5-99.5T800-358q0-66-24.5-122T708-579l57-57q54 54 84.5 125T880-358q0 81-30.5 152.5T765-80Z" /></svg>
+                                        </button>
+                                    </div>
+                                    <div id="correct" class="invisible position-absolute top-50 start-100 translate-middle-y">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#75FB4C"><path d="m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" /></svg>
+                                        <!-- <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#EA3323"><path d="m336-280 144-144 144 144 56-56-144-144 144-144-56-56-144 144-144-144-56 56 144 144-144 144 56 56ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg> -->
+                                    </div>
+                                    <div id="wrong" class="invisible position-absolute top-50 start-100 translate-middle-y">
+                                        <!-- <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#75FB4C"><path d="m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg> -->
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#EA3323"><path d="m336-280 144-144 144 144 56-56-144-144 144-144-56-56-144 144-144-144-56 56 144 144-144 144 56 56ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" /></svg>
                                     </div>
                                 </div>
+                                <div class="col-2"></div>
                             </div>
-                        
-                            <div class="col-md-4">
-                                <div class="card bg-danger">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Example:</h5>
-                                        <p class="card-text" id="ex">
-                                        </p>
+                        </div>
+
+
+                        <div class="container mt-5">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card bg-danger">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Definition:</h5>
+                                            <p class="card-text" id="dfn">
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card bg-danger">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Origin:</h5>
+                                            <p class="card-text" id="origin">
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card bg-danger">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Example:</h5>
+                                            <p class="card-text" id="ex">
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                </div>
-                </div>
+                    </div>
                 </div>
             </div>
             <!-- tab menu -->
@@ -284,50 +275,49 @@
 
             </div>
         </div>
-      </main>
-      <footer class="footer mt-auto py-2 bg-body-tertiary">
+    </main>
+    <footer class="footer mt-auto py-2 bg-body-tertiary">
         <div class="container">
-          <span class="text-body-secondary"> </span>
+            <span class="text-body-secondary"> </span>
         </div>
-      </footer> 
-    </body>
+    </footer>
+</body>
 <script>
-    function correct()
+    function result(isCorrect)
     {
-        document.getElementById("wrong").classList.add("invisible")
-        document.getElementById("correct").classList.remove("invisible")
-    }
-
-    function wrong()
-    {
-        document.getElementById("wrong").classList.remove("invisible")
-        document.getElementById("correct").classList.add("invisible") 
+        if( isCorrect ) {
+            document.getElementById("wrong").classList.add("invisible")
+            document.getElementById("correct").classList.remove("invisible")
+        }
+        else {
+            document.getElementById("correct").classList.add("invisible")
+            document.getElementById("wrong").classList.remove("invisible")
+        }
     }
 
     function resetAnswer()
     {
         document.getElementById("answer").value = ""
-
         document.getElementById("wrong").classList.add("invisible")
         document.getElementById("correct").classList.add("invisible")
     }
 
     document.getElementById("answer").addEventListener("keydown", async function(event) {
-    if( event.key === "Enter" )
-    {
-        event.preventDefault()
-        let text = "Wrong!"
-        let classN = "alert alert-danger"
-        if( document.getElementById("answer").value === local_targetWord )
+        if( event.key === "Enter" )
         {
-            correct()
-            await setTimeout(()=>{ next()}, 1500);
+            event.preventDefault()
+            let text = "Wrong!"
+            let classN = "alert alert-danger"
+            if( document.getElementById("answer").value == local_targetWord )
+            {
+                result(true)
+                await setTimeout(()=>{ next()}, 1500);
+            }
+            else {
+                result(false)
+                await setTimeout(()=>{ resetAnswer()}, 600);
+            }
         }
-        else {
-            wrong()
-            await setTimeout(()=>{ resetAnswer()}, 600);
-        }
-    }
-})
+    })
 </script>
 </html>

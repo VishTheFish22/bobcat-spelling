@@ -30,7 +30,17 @@ self.addEventListener('message', async function(e) {
 			break;
 		case "query":
 			const keys = await db.words.where('cat').equals(e.data["cat"]).primaryKeys()
-			this.postMessage(["data", keys])
+			const keys_array = [...keys.values()]
+			//shuffle
+			let len = keys_array.length
+			for(i=0;i<keys_array.length;i++)
+			{
+				swapidx = Math.floor(Math.random() * len)
+				a = keys_array[i];
+				keys_array[i] = keys_array[swapidx];
+				keys_array[swapidx] = a;
+			}
+			this.postMessage(["data", keys_array])
 			break;
 		case "play":
 			const entry = await db.words.where('id').equals(e.data["id"]).first()
