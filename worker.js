@@ -1,22 +1,31 @@
 importScripts('https://unpkg.com/dexie/dist/dexie.js');
 const db = new Dexie('spellingbee'); 
-db.version(14).stores({ words: '++id, cat' });
-db.on("populate", async (tx) => {
-	response = await fetch("./words.json")
-	let jsonObj = await response.json()
-	let data = []
-	jsonObj.forEach(function (item) {
-		mp3 = atob(item["mp3"])
-		const arr = new Uint8Array(mp3.length)
-		for(let i=0;i<arr.length;i++)
-		{
-			arr[i] = mp3.charCodeAt(i)
+db.version(23).stores({ words: '++id, cat' });
+db.on("ready", (tx) => {
+	return tx.words.count( function (count) {
+		if( count < 1 ) {
+			urls = ["./data/set1.json", "./data/set2.json"]
+			return Promise.all(urls.map(url => fetch(url)))
+		   					.then(responses => Promise.all(responses.map((response)=>response.json())))
+							.then(function (jsonObjs) {
+								let acc = []
+								jsonObjs.forEach( (jsonObj) => {
+									jsonObj.forEach((item) => {
+										mp3 = atob(item["mp3"])
+										const arr = new Uint8Array(mp3.length)
+										arr.map(function (element, index, uarray) {
+											uarray[index] = mp3.charCodeAt(index)
+										})
+										const blob = new Blob([arr], {type: 'audio/mp3'})
+										item["mp3"] = blob				
+										acc.push(item)
+									})
+								})
+								console.log(acc.length)
+								tx.words.bulkPut(acc)
+							})
 		}
-		const blob = new Blob([arr], {type: 'audio/mp3'})
-		item["mp3"] = blob				
-		data.push(item)
-	})	
-	await db.words.bulkAdd(data)
+	})
 });
 
 self.addEventListener('message', async function(e) { 
@@ -24,12 +33,14 @@ self.addEventListener('message', async function(e) {
 	switch(action)
 	{
 		case "install":
-			this.postMessage(["event", "installing"])
+			this.postMessage({msg:"installing"})
 			await db.open()
-			this.postMessage(["event", "ready"])
+			this.postMessage({msg:"ready"})
 			break;
 		case "query":
-			const keys = await db.words.where('cat').equals(e.data["cat"]).primaryKeys()
+			console.log("query ---- " + e.data)
+			const cat = e.data["cat"]
+			const keys = await db.words.where('cat').equals(cat).primaryKeys()
 			const keys_array = [...keys.values()]
 			//shuffle
 			let len = keys_array.length
@@ -41,13 +52,13 @@ self.addEventListener('message', async function(e) {
 				keys_array[swapidx] = a;
 			}
 			console.log(keys_array)
-			this.postMessage(["data", keys_array])
+			this.postMessage({msg:"data", data:{"cat":cat, "keys":keys_array}})
 			break;
 		case "play":
 			console.log(e)
-			console.log(e.data["id"])
+			console.log(e.data.id)
 			const entry = await db.words.where('id').equals(e.data["id"].toString()).first()
-			this.postMessage(["answer", entry])
+			this.postMessage({msg:"answer", data:entry})
 			break;				
 	}
 })

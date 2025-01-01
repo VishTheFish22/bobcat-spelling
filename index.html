@@ -3,32 +3,115 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function write_menu()
+        {
+            qe = document.getElementById("")
+            bundles = [
+                {
+                    "cat": "School 1",
+                    "name": "School Level 1",
+                    "description": "2025 School Spelling Bee Study List: 1st, 2nd and 3rd Grade Words",
+                    "detail": "150 words perfect for beginning spellers or students in grades 1-3. <br>  ."
+                },
+                {
+                    "cat": "School 2",
+                    "name": "School Level 2",
+                    "description": "2025 School Spelling Bee Study List: 4th, 5th and 6th Grade Words",
+                    "detail": "150 words to inspire beginning and intermediate spellers or students in grades 4-6."
+                },
+                {
+                    "cat": "School 3",
+                    "name": "School Level 3",
+                    "description": "2025 School Spelling Bee Study List: 7th and 8th Grade Words",
+                    "detail": "Finish the School Spelling Bee Study list with 150 challenging words for 7th and 8th graders."
+                },
+                {
+                    "cat": "1",
+                    "name": "Champion Level 1",
+                    "description": "2025 School Spelling Bee Study List: 1st, 2nd and 3rd Grade Words",
+                    "detail": "From the beginner level of study words for school champions"
+                },
+                {
+                    "cat": "2",
+                    "name": "Champion Level 2",
+                    "description": "2025 School Spelling Bee Study List: 1st, 2nd and 3rd Grade Words",
+                    "detail": "From the intermediate level of study words for school champions"
+                },
+                {
+                    "cat": "3",
+                    "name": "Champion Level 3",
+                    "description": "2025 School Spelling Bee Study List: 1st, 2nd and 3rd Grade Words",
+                    "detail": "From the advanced level of study words for school champions"
+                }
+            ]
+            html = '<div class="mt-4 p-5 bg-danger text-white rounded">' + 
+                    '<h1>Welcome to Bobcat Spelling!</h1>' + 
+                    '</div>'
+            
+            html += '<div class="row mt-5 justify-content-center">'
+
+            bundles.forEach((entry) => {
+                    html += '<div class="col-md-4 mt-2 mb-2">' +
+                                '<div class="card bg-danger">' +
+                                    '<div class="card-body">' +
+                                        '<h3 class="card-title">' + entry.name +'</h3>' +
+                                        '<p class="card-text">' +entry.detail + '</p>' +
+                                        '<a href="#" class="btn" style="background-color:#2dcecd; color: #2d0a0a" onclick="quiz(\'' + entry.cat + '\', true)">Begin</a>' +
+                                        '<a href="#" name=\"' + entry.cat + '-resume\"' + ' class="btn invisible" style="background-color:#2dcecd; color: #2d0a0a" onclick="quiz(\'' + entry.cat + '\', false)">Resume</a>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>'
+ 
+                })
+            html += '</div>'
+            $("#simple-tabpanel-1").html(html)
+            console.log("wrting.........................")
+        }
+
         let local_entries
         let local_audio
         let local_targetWord
 
         const worker = new Worker('worker.js?t=' + new Date().getTime())
-
         worker.onmessage = function(ev) {
-            if( ev.data[1] === "ready" ) {
-                show_menu()
-            }
-            else if( ev.data[1] === "installing") {
-                show_progress()
-            }
-            else if( ev.data[0] === "data") {
-                start_quiz(ev.data[1])
-            }
-            else if(ev.data[0] === "answer") {
-                load_question(ev.data[1])
+            switch(ev.data.msg)
+            {
+                case "ready":
+                    write_menu()
+                    show_menu()
+                    break;
+                case "installing":
+                    show_progress()
+                    break;
+                case "data":
+                    localStorage.setItem(ev.data.data.cat+"-session", JSON.stringify(ev.data.data.keys))
+                    localStorage.setItem(ev.data.data.cat+"-progress", 0)
+                    quiz(ev.data.data.cat)
+                    break;
+                case "answer":
+                    load_question(ev.data.data)
             }
         };
 
         window.onload = function(e) {
-            console.log("process")
+            $('.nav-tabs a').on('shown.bs.tab', function(event) {
+                if( $(event.target).text() === "Menu 2") {
+                    $('a[name$="-resume"]').each((idx, elm) => {
+                        const cat = elm.name.substr(0, elm.name.length-7)
+                        console.log("found - [" + cat + "]")
+                        $('a[name="'+ cat + '-resume' + '"]').addClass("invisible")
+                        if(cat+"-session" in localStorage) {
+                            $('a[name="'+ cat + '-resume' + '"]').removeClass("invisible")
+                        }
+                    })
+                }
+            });
+
             worker.postMessage({"action":"install"})
+
         }
         // document.onkeypress = function (e) {
         // e = e || window.event;
@@ -41,9 +124,9 @@
         function load_question(entry)
         {
             console.log(entry)
-            local_targetWord = entry["word"]
+            local_targetWord = entry.word.toLowerCase()
             local_audio = new Audio(URL.createObjectURL(entry["mp3"]))
-            document.getElementById("dfn").innerHTML = entry["dfn"]
+            $("#dfn").html(entry.dfn)
             document.getElementById("ex").innerHTML = entry["ex"]
             document.getElementById("origin").innerHTML = entry["origin"]
             play_audio()
@@ -51,16 +134,18 @@
 
         function next() {
             resetAnswer()
-            local_index = (local_index + 1)%local_totalCount
-            const pb = document.getElementById("current-progress")
+            localStorage.setItem(local_cat +"-progress", local_index)
             const value = ((local_index)*100)/local_totalCount
-            pb.style.width = value + '%';
+            const pb = document.getElementById("current-progress")
+            pb.style.width = value + '%'
             pb.setAttribute('aria-valuenow', value);
+            pb.innerHTML = ("<b>" + (local_index+1) + " / " + local_totalCount+"</b>")
             console.log(local_entries[local_index])
             worker.postMessage({
                 "action": "play",
                 "id": local_entries[local_index]
             })
+            local_index = (local_index + 1)%local_totalCount
         }
         function play_audio() {
             local_audio.play()
@@ -81,20 +166,23 @@
             show_tab("simple-progress")
         }
 
-        function quiz(id)
+        function quiz(cat, restart=false)
         {
-            worker.postMessage({"action":"query", "cat": id})
-            show_tab("simple-tabpanel-2")
-        }
+            console.log(restart)
+            if(!restart && (cat+"-session" in localStorage))
+            {
+                local_index = parseInt(localStorage.getItem(cat+"-progress") || "0")
+                local_entries = JSON.parse(localStorage.getItem(cat+"-session"))
+                local_totalCount = local_entries.length
+                local_cat = cat
 
-        function start_quiz(entry_list)
-        {
-            console.log(entry_list)
-            //reset
-            local_index = -1
-            local_totalCount = entry_list.length
-            local_entries = entry_list
-            next()
+                show_tab("simple-tabpanel-2")
+
+                next()
+            }
+            else {
+                worker.postMessage({"action":"query", "cat": cat})
+            }
         }
 
         function show_menu()
@@ -104,11 +192,13 @@
 
         function show_tab(tab_id)
         {
-            let tabs = document.querySelectorAll(".tab-pane")
-            tabs.forEach(element => {
-                element.classList.remove("active")
-            });
-            document.getElementById(tab_id).classList.add("active")
+            $(".nav-tabs a[href='#" + tab_id + "']").tab('show');
+
+            // let tabs = document.querySelectorAll(".tab-pane")
+            // tabs.forEach(element => {
+            //     element.classList.remove("active")
+            // });
+            // document.getElementById(tab_id).classList.add("active")
         }
 
     </script>
@@ -128,10 +218,20 @@
 <body class="d-flex flex-column h-100">
 
     <main role="main" class="container">
-
+        <ul class="nav nav-tabs d-none">
+            <li class="nav-item">
+              <a class="nav-link active" data-toggle="tab" href="#simple-progress">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-toggle="tab" href="#simple-tabpanel-2">Menu 1</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-toggle="tab" href="#simple-tabpanel-1">Menu 2</a>
+            </li>
+          </ul>
         <div class="tab-content pt-1" id="tab-content">
             <!-- progress -->
-            <div class="tab-pane active" id="simple-progress" role="tabpanel">
+            <div class="tab-pane fade active" id="simple-progress" role="tabpanel">
                 <div class="progress">
                     <div class="progress-bar progress-bar-striped bg-danger progress-bar-animated" roles="progressbar" style="width:100%"
                          aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
@@ -154,13 +254,12 @@
 
 
             <!-- tab quiz -->
-            <div class="tab-pane" id="simple-tabpanel-2" role="tabpanel" aria-labelledby="simple-tab-1">
+            <div class="tab-pane fade" id="simple-tabpanel-2" role="tabpanel" aria-labelledby="simple-tab-2">
                 <header class="text-bg-dark">
                     <div class="container">
                         <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
-
                             <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
-                                <li><Button class="btn" onclick="show_tab('simple-tabpanel-2')">Home</Button></li>
+                                <li><Button class="btn" onclick="show_tab('simple-tabpanel-1')">Home</Button></li>
                             </ul>
                         </div>
                     </div>
@@ -168,8 +267,9 @@
                 <div class="container p-5">
                     <div class="rounded">
                         <div class="progress">
-                            <div id="current-progress" class="progress-bar progress-bar-striped bg-danger progress-bar-animated" roles="progressbar" style="width:100%"
+                            <div id="current-progress" class="progress-bar overflow-visible progress-bar-striped bg-danger progress-bar-animated" roles="progressbar" style="width:100%"
                                  aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+                                    1 / 100
                             </div>
                         </div>
 
@@ -239,43 +339,7 @@
                 </div>
             </div>
             <!-- tab menu -->
-            <div class="tab-pane" id="simple-tabpanel-1" role="tabpanel" aria-labelledby="simple-tab-2">
-                <div class="mt-4 p-5 bg-danger text-white rounded">
-                    <h1>Welcome to Bobcat Spelling!</h1>
-                </div>
-                <div class="row mt-5 justify-content-center">
-                    <div class="col-md-3 mt-1 m-1">
-                        <div class="card bg-danger">
-                            <div class="card-body">
-                                <h3 class="card-title"> Level 1</h3>
-                                <p class="card-text"> Grades 1-3 </p>
-                                <!-- <button type="button" class="btn btn-primary btn-lg px-4 gap-3" onclick="install()">Begin</button> -->
-                                <a href="#" class="btn" style="background-color:#2dcecd; color: #2d0a0a" onclick="quiz('School 1')">Begin</a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3 mt-1 m-1">
-                        <div class="card bg-danger">
-                            <div class="card-body">
-                                <h3 class="card-title"> Level 2</h3>
-                                <p class="card-text"> Grades 4-6 </p>
-                                <a href="#" class="btn" style="background-color:#2dcecd; color: #2d0a0a" onclick="quiz('School 2')">Begin</a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3 mt-1 m-1">
-                        <div class="card bg-danger">
-                            <div class="card-body">
-                                <h3 class="card-title"> Level 3</h3>
-                                <p class="card-text"> Grades 7, 8 </p>
-                                <a href="#" class="btn" style="background-color:#2dcecd; color: #2d0a0a" onclick="quiz('School 3')">Begin</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+            <div class="tab-pane fade" id="simple-tabpanel-1" role="tabpanel" aria-labelledby="simple-tab-1">
             </div>
         </div>
     </main>
@@ -311,7 +375,7 @@
             event.preventDefault()
             let text = "Wrong!"
             let classN = "alert alert-danger"
-            if( document.getElementById("answer").value == local_targetWord )
+            if( document.getElementById("answer").value.toLowerCase() == local_targetWord )
             {
                 result(true)
                 await setTimeout(()=>{ next()}, 1500);
