@@ -5,7 +5,9 @@ let local_audio
 let local_targetWord
 
 const stringCleanExpr = new RegExp("[ ]", 'g')
-const SpeechRecognition = window.SpeechRecognition ||window.webkitSpeechRecognition
+const exampleExpr = new RegExp("[_]+", 'g')
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+const SpeechSynthesis = window.speechSynthesis
 const recognition = new SpeechRecognition();
 recognition.continuous = false;
 recognition.lang = "en-US";
@@ -143,6 +145,19 @@ window.onload = function(e) {
     })
 
     $("#mainform").on("submit", onSubmit)
+    
+    $("#dfn").on("click", (event) => { 
+        speakText(event.target.innerHTML)
+    })
+
+    $("#ex").on("click", (event) => { 
+        const exStr = event.target.innerHTML.replace(exampleExpr, local_targetWord)
+        speakText(exStr)
+    })
+    
+     $("#origin").on("click", (event) => { 
+        speakText(event.target.innerHTML)
+    })
 
     recognition.onresult = async function (event) {
         result = event.results[0][0].transcript
@@ -182,6 +197,7 @@ function loadQuestion(entry)
     $("#dfn").html(entry.dfn)
     $("#ex").html(entry.ex)
     $("#origin").html(entry.origin)
+    $("#part").html(entry.part + "&nbsp;&nbsp;|&nbsp;")
     playAudio()
 }
 
@@ -247,6 +263,13 @@ function playAudio() {
     speechRecognitionStop()
     stopAudio()
     local_audio?.play()
+}
+
+//-----------------------------------------------------------
+function speakText(text)
+{
+    SpeechSynthesis.cancel()
+    SpeechSynthesis.speak(new SpeechSynthesisUtterance(text))
 }
 
 //-----------------------------------------------------------
