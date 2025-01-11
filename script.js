@@ -1,6 +1,19 @@
+let local_index
+let local_cat
 let local_entries
 let local_audio
 let local_targetWord
+
+const stringCleanExpr = new RegExp("[ ]", 'g')
+const SpeechRecognition = window.SpeechRecognition ||window.webkitSpeechRecognition
+const recognition = new SpeechRecognition();
+recognition.continuous = false;
+recognition.lang = "en-US";
+recognition.interimResults = true;
+recognition.maxAlternatives = 1;
+
+//-----------------------------------------------------------
+const processString = (inputStr) => inputStr.toLowerCase().replace(stringCleanExpr, '')
 
 //-----------------------------------------------------------
 function card(entry)
@@ -101,7 +114,6 @@ window.onload = function(e) {
     //check for 
     $('.nav-tabs a').on('shown.bs.tab', function(event) {
         if( $(event.target).text() === "MainMenu") {
-            console.log("on main")
             $('a[name$="-resume"]').each((idx, elm) => {
                 const cat = elm.name.substr(0, elm.name.length-7)
                 $('a[name="'+ cat + '-resume' + '"]').addClass("invisible")
@@ -112,12 +124,16 @@ window.onload = function(e) {
         }
     });
 
-    $("#answer").on("keydown", async function(event) {
+    $("#answer").on("keypress", async function(event) {
         switch(event.keyCode)
         {
             case 49:
                 playAudio()
                 event.preventDefault();
+                break;
+            case 50:
+                speechRecognitionStart()
+                event.preventDefault()
                 break;
             case 57:
                 reveal()
@@ -127,6 +143,11 @@ window.onload = function(e) {
     })
 
     $("#mainform").on("submit", onSubmit)
+
+    recognition.onresult = async function (event) {
+        result = event.results[0][0].transcript
+        $("#answer").val(result.replaceAll(' ', ''))
+    }
 
     worker.postMessage({
         "action":"install"
@@ -139,7 +160,8 @@ async function onSubmit(event)
     if(!$("#answer").hasClass("already"))
     {
         $("#answer").addClass("already")
-        const isCorrect = ($("#answer").val().toLowerCase() == local_targetWord)
+        const inputValue = processString($("#answer").val())
+        const isCorrect = (inputValue == local_targetWord)
         updateResult(isCorrect)
         await setTimeout(()=>{ 
             isCorrect ? nextQuestion() : resetAnswer(); 
@@ -154,7 +176,7 @@ async function onSubmit(event)
 //-----------------------------------------------------------
 function loadQuestion(entry)
 {
-    local_targetWord = entry.word.toLowerCase()
+    local_targetWord = processString(entry.word)
     local_audio = new Audio(URL.createObjectURL(entry.mp3))
 
     $("#dfn").html(entry.dfn)
@@ -201,8 +223,30 @@ function nextQuestion()
 }
 
 //-----------------------------------------------------------
+function speechRecognitionStart()
+{
+    speechRecognitionStop()
+    stopAudio()
+    recognition?.start()
+}
+
+//-----------------------------------------------------------
+function speechRecognitionStop()
+{
+    recognition?.stop()
+}
+
+//-----------------------------------------------------------
+function stopAudio()
+{
+    local_audio?.pause()
+}
+
+//-----------------------------------------------------------
 function playAudio() {
-    local_audio.play()
+    speechRecognitionStop()
+    stopAudio()
+    local_audio?.play()
 }
 
 //-----------------------------------------------------------
@@ -240,12 +284,13 @@ function doesSessionExist(cat)
 //-----------------------------------------------------------
 function startQuiz(cat, restart=false)
 {
-    console.log(restart)
     if(!restart && doesSessionExist(cat))
     {
         local_index = parseInt(localStorage.getItem(cat+"-progress") || "0")
         local_entries = JSON.parse(localStorage.getItem(cat+"-session"))
         local_cat = cat
+        local_audio = null
+        local_targetWord = null
         showTab("quiz")
         nextQuestion()
     }
