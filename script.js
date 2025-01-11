@@ -115,18 +115,6 @@ window.onload = function(e) {
     $("#answer").on("keydown", async function(event) {
         switch(event.keyCode)
         {
-            case 13:
-                event.preventDefault()
-                if( $("#answer").val().toLowerCase() == local_targetWord )
-                {
-                    updateResult(true)
-                    await setTimeout(()=>{ nextQuestion()}, 1500);
-                }
-                else {
-                    updateResult(false)
-                    await setTimeout(()=>{ resetAnswer()}, 600);
-                }
-                break;
             case 49:
                 playAudio()
                 event.preventDefault();
@@ -138,9 +126,29 @@ window.onload = function(e) {
         }
     })
 
+    $("#mainform").on("submit", onSubmit)
+
     worker.postMessage({
         "action":"install"
     })
+}
+
+//-----------------------------------------------------------
+async function onSubmit(event)
+{
+    if(!$("#answer").hasClass("already"))
+    {
+        $("#answer").addClass("already")
+        const isCorrect = ($("#answer").val().toLowerCase() == local_targetWord)
+        updateResult(isCorrect)
+        await setTimeout(()=>{ 
+            isCorrect ? nextQuestion() : resetAnswer(); 
+            $("#answer").removeClass("already")
+        }, isCorrect?1200:600);
+    }
+    else {
+        event.preventDefault()
+    }
 }
 
 //-----------------------------------------------------------
